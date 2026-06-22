@@ -51,7 +51,17 @@ export default function ApprovalRequests({ requests, setRequests, setExistingRol
 
     if (r.type === "Role Request") {
       setRoleRequests((prev) =>
-        prev.map((item) => String(item.id) === String(r.sourceId) ? { ...item, status: action, comment: customComment || "" } : item),
+        prev.map((item) =>
+          String(item.id) === String(r.sourceId)
+            ? {
+                ...item,
+                status: action,
+                comment: customComment || "",
+                salaryRange: r.salary ? r.salary.replace(/^₹/, "") : item.salaryRange,
+                experience: r.experience || item.experience,
+              }
+            : item
+        ),
       );
     }
     if (r.type === "Job Request") {
@@ -131,6 +141,67 @@ export default function ApprovalRequests({ requests, setRequests, setExistingRol
     }
     setFieldErrors({});
     performAction(updatedSel, action, comment);
+    closeModal();
+  };
+
+  const saveEdits = () => {
+    if (!sel) return;
+    let updatedSel = { ...sel };
+    if (sel.type === "Role Request") {
+      const minS = sel.minSalary ?? sel.salary?.replace(/^₹/, "").split("-")[0]?.trim() ?? "";
+      const maxS = sel.maxSalary ?? sel.salary?.replace(/^₹/, "").split("-")[1]?.trim() ?? "";
+      const minE = sel.minExp ?? (sel.experience ? String(sel.experience).split("-")[0]?.trim() : "");
+      const maxE = sel.maxExp ?? (sel.experience ? String(sel.experience).split("-")[1]?.trim() : "");
+
+      const errs: Record<string, string> = {};
+      if (minS && maxS && parseSal(minS) >= parseSal(maxS)) errs.minSalary = "Min salary must be less than max salary";
+      if (minE && maxE && parseFloat(minE) >= parseFloat(maxE)) errs.minExp = "Min experience must be less than max experience";
+      if (Object.keys(errs).length > 0) { setFieldErrors(errs); return; }
+
+      updatedSel.salary = minS && maxS ? `₹${minS}-${maxS}` : sel.salary;
+      updatedSel.experience = minE && maxE ? `${minE}-${maxE}` : sel.experience;
+    }
+    if (sel.type === "Job Request") {
+      updatedSel.vacancies = sel.vacancies;
+      updatedSel.qual = sel.qual;
+      updatedSel.empType = sel.empType;
+      updatedSel.description = sel.description;
+    }
+    setFieldErrors({});
+    
+    // Save to requests list
+    setRequests((prev) => prev.map((item) => (item.id === sel.id ? updatedSel : item)));
+
+    // Save to roleRequests / jobRequests
+    if (sel.type === "Role Request") {
+      setRoleRequests((prev) =>
+        prev.map((item) =>
+          String(item.id) === String(sel.sourceId)
+            ? {
+                ...item,
+                salaryRange: updatedSel.salary ? updatedSel.salary.replace(/^₹/, "") : item.salaryRange,
+                experience: updatedSel.experience || item.experience,
+              }
+            : item
+        )
+      );
+    }
+    if (sel.type === "Job Request") {
+      setJobRequests((prev) =>
+        prev.map((item) =>
+          String(item.id) === String(sel.sourceId)
+            ? {
+                ...item,
+                vacancies: updatedSel.vacancies,
+                qual: updatedSel.qual,
+                type: updatedSel.empType,
+                description: updatedSel.description,
+              }
+            : item
+        )
+      );
+    }
+    
     closeModal();
   };
 
@@ -399,9 +470,9 @@ export default function ApprovalRequests({ requests, setRequests, setExistingRol
                 display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap",
                 background: T.canvas, borderRadius: "0 0 16px 16px",
               }}>
-                <Btn label="✕ Reject" variant="danger" small onClick={() => takeAction("Rejected")} />
+                <Btn label="Cancel" variant="ghost" small onClick={closeModal} />
                 <Btn
-                  label="↺ Send Back"
+                  label="Send Back"
                   variant="amber"
                   small
                   onClick={() => {
@@ -409,7 +480,7 @@ export default function ApprovalRequests({ requests, setRequests, setExistingRol
                     takeAction("Send Back");
                   }}
                 />
-                <Btn label="✓ Approve" variant="success" small onClick={() => takeAction("Approved")} />
+                <Btn label="Accept" variant="success" small onClick={() => takeAction("Approved")} />
               </div>
             )}
           </div>
