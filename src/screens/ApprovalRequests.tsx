@@ -470,7 +470,17 @@ export default function ApprovalRequests({ requests, setRequests, setExistingRol
                 display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap",
                 background: T.canvas, borderRadius: "0 0 16px 16px",
               }}>
-                <Btn label="Cancel" variant="ghost" small onClick={closeModal} />
+                <Btn
+                  label="Cancel Request"
+                  variant="ghost"
+                  small
+                  onClick={() => {
+                    if (!sel) return;
+                    if (confirm("Are you sure you want to cancel this request?")) {
+                      takeAction("Rejected");
+                    }
+                  }}
+                />
                 <Btn
                   label="Send Back"
                   variant="amber"
